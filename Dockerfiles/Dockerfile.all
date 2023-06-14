@@ -1,7 +1,6 @@
 FROM registry.access.redhat.com/ubi9/ubi
-ARG ECOSYSTEM_VERSION=golang
 LABEL org.opencontainers.image.source https://github.com/fabric8-analytics/crda-images
-RUN yum install -y $ECOSYSTEM_VERSION; yum clean all
+RUN yum install -y python3 golang maven npm; yum clean all && ln -s /usr/bin/python3 /usr/bin/python
 
 RUN rpm -i https://github.com/fabric8-analytics/cli-tools/releases/download/v0.2.5/crda_0.2.5_Linux-64bit.rpm
 

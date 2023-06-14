@@ -3,15 +3,22 @@
 # Create config file for CRDA CLI
 mkdir -p $HOME/.crda
 touch $HOME/.crda/config.yaml
+
+# Add params to CRDA CLI config
 echo auth_token: ${AUTH_TOKEN} >> $HOME/.crda/config.yaml
 echo crda_key: ${CRDA_KEY} >> $HOME/.crda/config.yaml
-echo consent_telemetry: ${CONSENT_TELEMETRY} >> $HOME/.crda/config.yaml
 echo host: ${HOST} >> $HOME/.crda/config.yaml
+
+if [ "$TELEMETRY" == "true" ]
+then
+crda config set consent_telemetry true
+else
+crda config set consent_telemetry false
+fi
 
 manifest_file_path="$1"
 output_file_path="$2"
-pkg_installation_directory_path="$3"
-consumer="$4"
+consumer="$3"
 
 printf "Analysing the stack. Please wait..\n\n"
 
