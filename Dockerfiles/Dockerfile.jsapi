@@ -1,0 +1,31 @@
+FROM registry.access.redhat.com/ubi9/nodejs-18
+
+LABEL org.opencontainers.image.source https://github.com/fabric8-analytics/crda-images
+
+# use privilaged user
+USER root 
+
+# install package managers
+RUN yum install -y maven golang; yum clean all
+
+# install JSON formating tool
+RUN yum install -y jq
+
+# install crda javascript API
+COPY configs/.npmrc .
+RUN npm install --global @RHEcosystemAppEng/crda-javascript-api
+
+# assign executable permissions to all installed binaries
+RUN chmod +x /usr/bin/mvn \
+    && chmod +x /usr/bin/go \
+    && chmod +x /usr/bin/jq \
+    && chmod +x /opt/app-root/src/.npm-global/bin/crda-javascript-api
+
+# assign token for crda authentication with Snyk provider
+ENV CRDA_SNYK_TOKEN=''
+
+COPY scripts/jsapi/crda.sh /
+RUN chmod +x /crda.sh
+
+# use default user
+USER default
