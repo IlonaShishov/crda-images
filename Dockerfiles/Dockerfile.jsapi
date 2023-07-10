@@ -5,11 +5,12 @@ LABEL org.opencontainers.image.source https://github.com/fabric8-analytics/crda-
 # use privilaged user
 USER root 
 
-# install package managers
-RUN yum install -y maven golang; yum clean all
-
-# install JSON formating tool
-RUN yum install -y jq
+# install package managers and JSON formating tool
+RUN yum install -y \
+    maven \
+    golang \
+    jq; \
+    yum clean all
 
 # install crda javascript API
 COPY configs/.npmrc .
