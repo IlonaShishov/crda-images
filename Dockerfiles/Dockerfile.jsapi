@@ -45,6 +45,10 @@ LABEL org.opencontainers.image.source https://github.com/fabric8-analytics/crda-
 # assign token for crda authentication with Snyk provider
 ENV CRDA_SNYK_TOKEN=''
 
+# Copy python executable from the builder stage
+COPY --from=builder /usr/bin/python3 /usr/bin/python
+COPY --from=builder /usr/lib64/libpython3.9.so.1.0 /usr/lib64/libpython3.9.so.1.0
+
 # Copy java executable from the builder stage
 COPY --from=builder /usr/jdk-20.0.1/ /usr/jdk-20.0.1/
 ENV JAVA_HOME=/usr/jdk-20.0.1
