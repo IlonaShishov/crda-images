@@ -1,0 +1,85 @@
+name: Generate Image
+
+env:
+  # 🖊️ EDIT to change the image registry settings.
+  # Registries such as GHCR, Quay.io, and Docker Hub are supported.
+  IMAGE_REGISTRY: quay.io/ecosystem-appeng
+  IMAGE_NAME: exhort-javascript-api
+  IMAGE_TAGS: latest
+  IMAGE_REGISTRY_USER: ${{ secrets.IMAGE_REGISTRY_USER }}
+  IMAGE_REGISTRY_PASSWORD: ${{ secrets.IMAGE_REGISTRY_PASSWORD }}
+  # 🖊️ EDIT to change Dockerfile.
+  DOCKERFILE_PATH: ./Dockerfiles/Dockerfile.alpha
+  # 🖊️ EDIT to change github package registry access token.
+  GITHUB_PACKAGE_REGISTRY_ACCESS_TOKEN: ${{ secrets.GITHUB_PACKAGE_REGISTRY_ACCESS_TOKEN }}
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+
+jobs:
+  validate_workflow_requirements:
+    runs-on: ubuntu-latest
+
+    if: github.repository == 'RHEcosystemAppEng/exhort-images'
+
+    steps:
+      - name: Check For Required Secrets
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const secrets = {};
+            
+            // if image registry is ghcr.io - no registry credentials required, otherwise get registry credentials
+            if (!`${{ env.IMAGE_REGISTRY }}`.startsWith("ghcr.io")) {
+              secrets["IMAGE_REGISTRY_USER"] = `${{ env.IMAGE_REGISTRY_USER }}`;
+              secrets["IMAGE_REGISTRY_PASSWORD"] = `${{ env.IMAGE_REGISTRY_PASSWORD }}`;
+            }
+
+            const missingSecrets = Object.entries(secrets).filter(([ name, value ]) => {
+              if (value.length === 0) {
+                core.error(`Secret "${name}" is not set`);
+                return true;
+              }
+              core.info(`✔️ Secret "${name}" is set`);
+              return false;
+            });
+
+            if (missingSecrets.length > 0) {
+              core.setFailed(`❌ At least one required secret is not set in the repository. \n` +
+                "You can add it using:\n" +
+                "GitHub UI: https://docs.github.com/en/actions/reference/encrypted-secrets#creating-encrypted-secrets-for-a-repository \n" +
+                "GitHub CLI: https://cli.github.com/manual/gh_secret_set \n" +
+                "Also, refer to https://github.com/redhat-actions/oc-login#getting-started-with-the-action-or-see-example");
+            }
+            else {
+              core.info(`✅ All the required secrets are set`);
+            }
+  
+  build_and_push_image:
+    needs: validate_workflow_requirements
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Build Image With buildah
+        id: build-image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: ${{ env.IMAGE_NAME }}
+          tags: ${{ env.IMAGE_TAGS }}
+          dockerfiles: |
+            ${{ env.DOCKERFILE_PATH }}
+          
+      - name: Push Image To Registry
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ env.IMAGE_REGISTRY_USER }}
+          password: ${{ env.IMAGE_REGISTRY_PASSWORD }}

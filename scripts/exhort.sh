@@ -5,22 +5,25 @@ output_file_path="$2"
 
 printf "Analysing the stack. Please wait..\n\n"
 
-# Getting stack analysis report using CRDA API.
-report=$(crda-javascript-api stack $manifest_file_path)
+# Getting stack analysis report using exhort Javascript CLI.
+report=$(exhort-javascript-api stack $manifest_file_path)
 
 exit_code=$?
 
-if [ $exit_code == 1 ]
+if [ $exit_code != 0 ]
 then
   # In case of failure save only exit code into output file.
   jq -n {} | \
   jq --arg exit_code "$exit_code" '. + {exit_code: $exit_code}' > \
   $output_file_path
+
+  printf "\nError: Red Hat Dependency Analysis failed with Exit Code $exit_code."
+  exit 1
 else
   # In case of success print details from report into console
-  printf "RedHat CodeReady Dependency Analysis task is being executed.\n"
+  printf "Red Hat Dependency Analysis task is being executed.\n"
   printf "=%.0s" {1..50}
-  printf "\nRedHat CodeReady Dependency Analysis Report\n"
+  printf "\nRed Hat Dependency Analysis Report\n"
   printf "=%.0s" {1..50}
   printf "\n"
   printf "Total Scanned Dependencies            :  %s \n" "$(jq -r '.summary.dependencies.scanned' <<< $report)"
@@ -28,12 +31,9 @@ else
   printf "Total Vulnerabilities                 :  %s \n" "$(jq -r '.summary.vulnerabilities.total' <<< $report)"
   printf "Direct Vulnerable Dependencies        :  %s \n" "$(jq -r '.summary.vulnerabilities.direct' <<< $report)"
 
-  provider_statuses=$(jq -rc '.summary.providerStatuses[]' <<< $report)
-  for provider_status in $provider_statuses; do         
-    message=$(echo $provider_status | jq -r '.message')
-    provider=$(echo $provider_status | jq -r '.provider')
-    printf "%s Provider Status                  :  %s \n" ${provider^} $message
-  done
+  provider_status=$(jq -rc '.summary.providerStatuses[] | select(.provider == "snyk")' <<< $report)
+  message=$(echo $provider_status | jq -r '.message')
+  printf "Snyk Provider Status                  :  %s \n" $message
 
   printf "Critical Vulnerabilities              :  %s \n" "$(jq -r '.summary.vulnerabilities.critical' <<< $report)"
   printf "High Vulnerabilities                  :  %s \n" "$(jq -r '.summary.vulnerabilities.high' <<< $report)"
@@ -46,7 +46,7 @@ else
   jq --argjson report "$report" '. + {report: $report}' | \
   jq --arg exit_code "$exit_code" '. + {exit_code: $exit_code}' > \
   $output_file_path
-fi
 
-printf "\nFull report is saved into file: $output_file_path"
-printf "\nTask is completed."
+  printf "\nFull report is saved into file: $output_file_path"
+  printf "\nTask is completed."
+fi
